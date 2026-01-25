@@ -1,29 +1,30 @@
 package ch.epfl.tchu.gui;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.util.*;
-
-import ch.epfl.tchu.SortedBag;
-import ch.epfl.tchu.game.*;
-import ch.epfl.tchu.net.RemoteChatProxy;
-import ch.epfl.tchu.net.RemotePlayerProxy;
+import ch.epfl.tchu.gui.config.DialogUtils;
+import ch.epfl.tchu.gui.config.ServerConfigView;
+import ch.epfl.tchu.gui.network.GameServer;
 import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.scene.Scene;
 import javafx.stage.Stage;
 
 /**
- * Class representing the server of the game.
+ * Main application class for the game server.
+ * Displays a configuration GUI before starting the server.
+ *
  * @author Cristian Safta (324694)
  * @author Jeremy Chaverot (315858)
  */
 public final class ServerMain extends Application {
 
+    private static final String WINDOW_TITLE = "tCHu - Configuration Serveur";
+    private static final int WINDOW_WIDTH = 650;
+    private static final int WINDOW_HEIGHT = 550;
+
     /**
-     * The method main, call the method start.
-     * @param args(String[]) : launch arguments that are the names of the players in the right order
-     *                       (2 players and Ada, Charles by default).
+     * Main entry point.
+     *
+     * @param args command line arguments (not used)
      */
     public static void main(String[] args) {
         launch(args);
@@ -31,68 +32,53 @@ public final class ServerMain extends Application {
 
     @Override
     public void start(Stage primaryStage) {
+        // Prevent JavaFX from closing completely when window is hidden
+        Platform.setImplicitExit(false);
 
-        ServerSocket socketGame, socketChat;
-        List<String> defaultNames = List.of("Ada", "Charles", "Alice", "Bob", "Emma", "Romain", "Joseph", "Camille");
-        List<String> arguments = getParameters().getRaw();
-        List<Socket> sockets = new ArrayList<>();
-        List<RemotePlayerProxy> remotePlayers = new ArrayList<>();
+        primaryStage.setTitle(WINDOW_TITLE);
 
-        int numberOfPlayers = 2;
-            if (!arguments.isEmpty()) {
-                numberOfPlayers = Objects.checkIndex(Integer.parseInt(arguments.get(0)), PlayerId.COUNT + 1);
-                if (arguments.size() > numberOfPlayers + 1) // In case that there are more given names than the number of players.
-                    arguments = arguments.subList(0, numberOfPlayers + 1);
-            }
+        // Create configuration view
+        ServerConfigView configView = new ServerConfigView();
 
-        try {
-            socketGame = new ServerSocket(5108);
-            socketChat = new ServerSocket(5109);
-                for (int i = 0 ; i < numberOfPlayers - 1 ; i++) {
-                    sockets.add(socketGame.accept());
-                    remotePlayers.add(new RemotePlayerProxy(sockets.get(i)));
-                }
+        // Set action when start button is clicked
+        configView.setOnStart(() -> handleStartServer(primaryStage, configView));
 
-            Map<PlayerId, String> playerNames = new HashMap<>();
-                if (!arguments.isEmpty()) {
-                    for (int i = 0 ; i < arguments.size() - 1 ; i++)
-                        playerNames.put(PlayerId.ALL.get(i), arguments.get(i+1));
-                    for (int i = arguments.size() - 1 ; i < numberOfPlayers ; i++)
-                        playerNames.put(PlayerId.ALL.get(i), defaultNames.get(i));
-                } else for (int i = 0 ; i < numberOfPlayers ; i++) {
-                    playerNames.put(PlayerId.ALL.get(i), defaultNames.get(i));
-                }
-
-            Map<PlayerId, Player> players = new HashMap<>();
-            GraphicalPlayerAdapter player1 = new GraphicalPlayerAdapter();
-                players.put(PlayerId.PLAYER_1, player1);
-                for (int i = 1 ; i < numberOfPlayers; i++)
-                    players.put(PlayerId.ALL.get(i), remotePlayers.get(i-1));
-
-            RemoteChatProxy chatProxy = new RemoteChatProxy(player1);
-            player1.setChatSystem(chatProxy);
-
-            new Thread(() -> {
-                while (true) {
-                    try {
-                        Socket socket = socketChat.accept();
-                        new Thread(() -> {
-                            chatProxy.addClient(socket);
-                            chatProxy.startReading(socket);
-                        }).start();
-                    } catch (IOException e) {
-                        throw new UncheckedIOException(e);
-                    }
-                }
-            }).start();
-
-            Thread gameThread = new Thread(() -> Game.play(players, playerNames, SortedBag.of(UsaMap.tickets()), new Random()));
-            gameThread.setDaemon(true);
-            gameThread.start();
-
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
+        // Setup and show scene
+        Scene scene = new Scene(configView.getRoot(), WINDOW_WIDTH, WINDOW_HEIGHT);
+        primaryStage.setScene(scene);
+        primaryStage.setResizable(false);
+        primaryStage.show();
     }
 
+    /**
+     * Handles the server start action.
+     * Validates inputs, hides the configuration window, and starts the server.
+     *
+     * @param stage the primary stage to hide
+     * @param view the configuration view containing user inputs
+     */
+    private void handleStartServer(Stage stage, ServerConfigView view) {
+        // Validate inputs
+        if (!view.validate()) {
+            return;
+        }
+
+        try {
+            // Get configuration parameters
+            int gamePort = view.getGamePort();
+            int chatPort = view.getChatPort();
+            int numberOfPlayers = view.getNumberOfPlayers();
+            String serverPlayerName = view.getServerPlayerName();
+
+            // Hide configuration window
+            stage.hide();
+
+            // Start server in separate thread
+            GameServer server = new GameServer(gamePort, chatPort, numberOfPlayers, serverPlayerName);
+            new Thread(() -> server.start()).start();
+
+        } catch (NumberFormatException e) {
+            DialogUtils.showError("Les ports doivent être des nombres valides");
+        }
+    }
 }

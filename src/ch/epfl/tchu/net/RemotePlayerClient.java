@@ -4,7 +4,6 @@ import ch.epfl.tchu.SortedBag;
 import ch.epfl.tchu.game.*;
 import java.io.*;
 import java.net.Socket;
-import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,6 +18,7 @@ public final class RemotePlayerClient {
 
     private final Player player;
     private final Socket socket;
+    private final String playerName;
 
     /**
      * Public constructor.
@@ -28,7 +28,20 @@ public final class RemotePlayerClient {
      * @throws UncheckedIOException if an unchecked exception is found.
      */
     public RemotePlayerClient(Player player, String name, int port) {
+        this(player, name, port, null);
+    }
+
+    /**
+     * Public constructor with player name.
+     * @param player (Player) : player who is given remote access.
+     * @param name (String) : name used to connect to the proxy.
+     * @param port (int) : port number used to connect to the proxy.
+     * @param playerName (String) : the name of the player to send to the server.
+     * @throws UncheckedIOException if an unchecked exception is found.
+     */
+    public RemotePlayerClient(Player player, String name, int port, String playerName) {
         this.player = player;
+        this.playerName = playerName;
         try {
             socket = new Socket(name, port);
 
@@ -43,7 +56,14 @@ public final class RemotePlayerClient {
      */
     public void run() {
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream(), US_ASCII));
-            BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(), US_ASCII))) {
+             BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(), US_ASCII))) {
+
+            // Send player name first if provided
+            if (playerName != null && !playerName.isEmpty()) {
+                writer.write(playerName);
+                writer.write('\n');
+                writer.flush();
+            }
 
             String message;
             while ((message = reader.readLine()) != null) {
@@ -56,8 +76,8 @@ public final class RemotePlayerClient {
                         List<String> names = Serdes.stringListSerde.deserialize(splitString[2]);
                         List<PlayerId> allPlayers = PlayerId.ALL.subList(0, names.size());
                         Map<PlayerId, String> playerNames = new HashMap<>();
-                            for (int i = 0 ; i < allPlayers.size() ; i++)
-                                    playerNames.put(allPlayers.get(i), names.get(i));
+                        for (int i = 0 ; i < allPlayers.size() ; i++)
+                            playerNames.put(allPlayers.get(i), names.get(i));
                         player.initPlayers(ownId, playerNames);
                         break;
 

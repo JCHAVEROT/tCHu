@@ -1,77 +1,91 @@
 package ch.epfl.tchu.gui;
 
-import java.util.List;
-
-import ch.epfl.tchu.net.RemoteChatClient;
-import ch.epfl.tchu.net.RemotePlayerClient;
+import ch.epfl.tchu.gui.config.ClientConfigView;
+import ch.epfl.tchu.gui.config.DialogUtils;
+import ch.epfl.tchu.gui.network.GameClient;
 import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.scene.Scene;
 import javafx.stage.Stage;
 
 /**
- * Class that represents the game client.
+ * Main application class for the game client.
+ * Displays a configuration GUI before connecting to the server.
+ *
  * @author Cristian Safta (324694)
  * @author Jeremy Chaverot (315858)
  */
 public final class ClientMain extends Application {
 
+    private static final String WINDOW_TITLE = "tCHu - Connexion au Serveur";
+    private static final int WINDOW_WIDTH = 650;
+    private static final int WINDOW_HEIGHT = 550;
+
     /**
-     * The method main, call the method start.
-     * @param args(String[]) : launch arguments that are the host name and the port (localhost and 5108 by default),
-     *                       and the host name and the port for the chat system (localhost and 5109 by default).
+     * Main entry point.
+     *
+     * @param args command line arguments (not used)
      */
     public static void main(String[] args) {
         launch(args);
     }
-    
+
     @Override
     public void start(Stage primaryStage) {
-        String hostName, chatHostName;
-        int port, chatPort;
-        List<String> arguments = getParameters().getRaw();
+        // Prevent JavaFX from closing completely when window is hidden
+        Platform.setImplicitExit(false);
 
-        switch (arguments.size()) {
-            case 0:
-                hostName = "localhost";
-                port = 5108;
-                chatHostName = "localhost";
-                chatPort = 5109;
-                break;
-            case 1:
-                hostName = arguments.get(0);
-                port = 5108;
-                chatHostName = "localhost";
-                chatPort = 5109;
-                break;
-            case 2:
-                hostName = arguments.get(0);
-                port = Integer.parseInt(arguments.get(1));
-                chatHostName = "localhost";
-                chatPort = 5109;
-                break;
-            case 3:
-                hostName = arguments.get(0);
-                port = Integer.parseInt(arguments.get(1));
-                chatHostName = arguments.get(2);
-                chatPort = 5109;
-                break;
-            default:
-                hostName = arguments.get(0);
-                port = Integer.parseInt(arguments.get(1));
-                chatHostName = arguments.get(2);
-                chatPort = Integer.parseInt(arguments.get(3));
-                break;
-        }
+        primaryStage.setTitle(WINDOW_TITLE);
 
-        GraphicalPlayerAdapter playerAdapter = new GraphicalPlayerAdapter();
-        RemoteChatClient chatClient = new RemoteChatClient(playerAdapter, chatHostName, chatPort);
-        playerAdapter.setChatSystem(chatClient);
-        RemotePlayerClient playerClient = new RemotePlayerClient(playerAdapter, hostName, port);
+        // Create configuration view
+        ClientConfigView configView = new ClientConfigView();
 
-        new Thread(() -> chatClient.run()).start();
-        Thread gameThread = new Thread(() -> playerClient.run());
-        gameThread.setDaemon(true);
-        gameThread.start();
-        
+        // Set action when connect button is clicked
+        configView.setOnConnect(() -> handleConnect(primaryStage, configView));
+
+        // Setup and show scene
+        Scene scene = new Scene(configView.getRoot(), WINDOW_WIDTH, WINDOW_HEIGHT);
+        primaryStage.setScene(scene);
+        primaryStage.setResizable(false);
+        primaryStage.show();
     }
 
+    /**
+     * Handles the connection action.
+     * Validates inputs, hides the configuration window, and connects to the server.
+     *
+     * @param stage the primary stage to hide
+     * @param view the configuration view containing user inputs
+     */
+    private void handleConnect(Stage stage, ClientConfigView view) {
+        // Validate inputs
+        if (!view.validate()) {
+            return;
+        }
+
+        try {
+            // Get connection parameters
+            String hostName = view.getHostName();
+            int gamePort = view.getGamePort();
+            int chatPort = view.getChatPort();
+            String playerName = view.getPlayerName();
+
+            // Hide configuration window
+            stage.hide();
+
+            // Connect to server in separate thread
+            GameClient client = new GameClient(hostName, gamePort, chatPort, playerName);
+            new Thread(() -> {
+                try {
+                    client.connect();
+                } catch (Exception e) {
+                    DialogUtils.showConnectionError(e.getMessage());
+                    e.printStackTrace();
+                }
+            }).start();
+
+        } catch (NumberFormatException e) {
+            DialogUtils.showError("Les ports doivent être des nombres valides");
+        }
+    }
 }
