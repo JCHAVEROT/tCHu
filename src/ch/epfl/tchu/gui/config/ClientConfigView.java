@@ -17,8 +17,9 @@ import javafx.scene.text.FontWeight;
 public final class ClientConfigView {
 
     private final VBox root;
-    private final TextField ipField;
+    private final TextField gameHostField;
     private final TextField gamePortField;
+    private final TextField chatHostField;
     private final TextField chatPortField;
     private final TextField playerNameField;
     private final Button connectButton;
@@ -38,43 +39,42 @@ public final class ClientConfigView {
         // Form
         GridPane form = createForm();
 
-        // IP address field
-        ipField = new TextField("localhost");
-        ipField.setPromptText("Adresse IP du serveur");
-        Label ipLabel = createLabel("Adresse IP:");
-        form.add(ipLabel, 0, 0);
-        form.add(ipField, 1, 0);
-
-        // Game port field
+        // Game Server fields
+        gameHostField = new TextField("localhost");
+        gameHostField.setPromptText("Hôte (ex: domaine.com)");
         gamePortField = new TextField("5108");
-        gamePortField.setPromptText("Port du serveur de jeu");
-        Label gamePortLabel = createLabel("Port de jeu:");
-        form.add(gamePortLabel, 0, 1);
-        form.add(gamePortField, 1, 1);
+        gamePortField.setPrefWidth(80);
 
-        // Chat port field
+        form.add(createLabel("Serveur de Jeu :"), 0, 0);
+        form.add(gameHostField, 1, 0);
+        form.add(gamePortField, 2, 0);
+
+        // Chat Server fields
+        chatHostField = new TextField("localhost");
+        chatHostField.setPromptText("Hôte (ex: domaine.com)");
         chatPortField = new TextField("5109");
-        chatPortField.setPromptText("Port du serveur de chat");
-        Label chatPortLabel = createLabel("Port de chat:");
-        form.add(chatPortLabel, 0, 2);
-        form.add(chatPortField, 1, 2);
+        chatPortField.setPrefWidth(80);
+
+        form.add(createLabel("Serveur de Chat :"), 0, 1);
+        form.add(chatHostField, 1, 1);
+        form.add(chatPortField, 2, 1);
 
         // Player name field
         playerNameField = new TextField("Charles");
         playerNameField.setPromptText("Nom du joueur");
-        Label playerNameLabel = createLabel("Votre nom:");
-        form.add(playerNameLabel, 0, 3);
-        form.add(playerNameField, 1, 3);
+        form.add(createLabel("Votre Nom :"), 0, 2);
+        form.add(playerNameField, 1, 2, 2, 1);
 
         // Apply styles
-        StyleUtils.styleTextField(ipField, "#27ae60");
+        StyleUtils.styleTextField(gameHostField, "#27ae60");
         StyleUtils.styleTextField(gamePortField, "#27ae60");
-        StyleUtils.styleTextField(chatPortField, "#27ae60");
-        StyleUtils.styleTextField(playerNameField, "#27ae60");
+        StyleUtils.styleTextField(chatHostField, "#2980b9");
+        StyleUtils.styleTextField(chatPortField, "#2980b9");
+        StyleUtils.styleTextField(playerNameField, "#2c3e50");
 
         // Info label
         Label infoLabel = createInfoLabel(
-                "Assurez-vous que le serveur est démarré avant de vous connecter"
+                "Maintenant, collectez vos wagons et bâtissez votre empire ferroviaire."
         );
 
         // Connect button
@@ -102,12 +102,12 @@ public final class ClientConfigView {
     }
 
     /**
-     * Returns the configured server IP address.
+     * Returns the configured game server host name.
      *
-     * @return the server IP address (trimmed)
+     * @return the game server host (trimmed)
      */
-    public String getHostName() {
-        return ipField.getText().trim();
+    public String getGameHostName() {
+        return gameHostField.getText().trim();
     }
 
     /**
@@ -117,7 +117,16 @@ public final class ClientConfigView {
      * @throws NumberFormatException if the port is not a valid number
      */
     public int getGamePort() {
-        return Integer.parseInt(gamePortField.getText());
+        return Integer.parseInt(gamePortField.getText().trim());
+    }
+
+    /**
+     * Returns the configured chat server host name.
+     *
+     * @return the chat server host (trimmed)
+     */
+    public String getChatHostName() {
+        return chatHostField.getText().trim();
     }
 
     /**
@@ -127,7 +136,7 @@ public final class ClientConfigView {
      * @throws NumberFormatException if the port is not a valid number
      */
     public int getChatPort() {
-        return Integer.parseInt(chatPortField.getText());
+        return Integer.parseInt(chatPortField.getText().trim());
     }
 
     /**
@@ -145,8 +154,8 @@ public final class ClientConfigView {
      * @return true if all inputs are valid, false otherwise
      */
     public boolean validate() {
-        if (getHostName().isEmpty()) {
-            DialogUtils.showError("Veuillez entrer l'adresse IP du serveur");
+        if (getGameHostName().isEmpty() || getChatHostName().isEmpty()) {
+            DialogUtils.showError("Veuillez entrer les adresses des deux serveurs");
             return false;
         }
 
@@ -175,7 +184,7 @@ public final class ClientConfigView {
 
     private GridPane createForm() {
         GridPane form = new GridPane();
-        form.setHgap(20);
+        form.setHgap(15);
         form.setVgap(15);
         form.setAlignment(Pos.CENTER);
         form.setMaxWidth(500);

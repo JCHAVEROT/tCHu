@@ -64,28 +64,37 @@ public final class ClientMain extends Application {
         }
 
         try {
-            // Get connection parameters
-            String hostName = view.getHostName();
+            // Get connection parameters for Game
+            String gameHost = view.getGameHostName();
             int gamePort = view.getGamePort();
+
+            // Get connection parameters for Chat
+            String chatHost = view.getChatHostName();
             int chatPort = view.getChatPort();
+
             String playerName = view.getPlayerName();
 
             // Hide configuration window
             stage.hide();
 
             // Connect to server in separate thread
-            GameClient client = new GameClient(hostName, gamePort, chatPort, playerName);
+            // Note: Ensure your GameClient constructor is updated to accept both hosts
+            GameClient client = new GameClient(gameHost, gamePort, chatHost, chatPort, playerName);
+
             new Thread(() -> {
                 try {
                     client.connect();
                 } catch (Exception e) {
-                    DialogUtils.showConnectionError(e.getMessage());
+                    Platform.runLater(() -> {
+                        DialogUtils.showError("Connection failed: " + e.getMessage());
+                        stage.show();
+                    });
                     e.printStackTrace();
                 }
             }).start();
 
         } catch (NumberFormatException e) {
-            DialogUtils.showError("Les ports doivent être des nombres valides");
+            DialogUtils.showError("Ports must be valid numbers");
         }
     }
 }

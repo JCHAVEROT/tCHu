@@ -46,7 +46,7 @@ public class RemoteChatProxy implements ChatSystem {
     }
 
     /**
-     * To add bind a new client the the chat proxy.
+     * To add bind a new client the chat proxy.
      * @param socket (Socket) : the socket the chat client is on.
      */
     public void addClient(Socket socket) {
@@ -70,7 +70,7 @@ public class RemoteChatProxy implements ChatSystem {
 
     /**
      * When the proxy player wants to send a message to the client players.
-     * @param message (String) : the message to be send.
+     * @param message (String) : the message to be sent.
      */
     @Override
     public void send(String message) {
